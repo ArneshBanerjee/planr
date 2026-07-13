@@ -15,7 +15,9 @@ and the plan re-flows around them without churning days that didn't change.
 
 ## How it works
 
-- **Gemini (free tier)** parses each chat message into structured operations (goals, constraints, fixed events) — one API call per message, so free-tier rate limits don't matter.
+- An **LLM parses each chat message** into structured operations (goals, constraints, fixed events) — one call per message. Two free providers, auto-detected:
+  - **Claude Code** (if the `claude` CLI is installed): runs `claude -p` headless under your existing subscription — zero setup, no API key.
+  - **Gemini free tier** (if `GEMINI_API_KEY` is set): free key from [AI Studio](https://aistudio.google.com/apikey).
 - A **deterministic scheduler** (pure TypeScript, no LLM) places 45–120 min blocks around sleep and fixed events, weighted by priority and deadline pressure, with phase-aware labels (learn → questions) and subject rotation. Re-plans only touch future, unlocked blocks.
 - Blocks live in **SQLite** (`data/planr.db`, auto-created) and render in **FullCalendar**. Click a block to mark done/skip/lock; dragging a block pins it.
 - Optional **Google Calendar sync**: your real events are planned around, and the next 14 days of blocks mirror to a dedicated "Planr" calendar for phone notifications.
@@ -24,12 +26,10 @@ and the plan re-flows around them without churning days that didn't change.
 
 ```bash
 npm install
-cp .env.local.example .env.local
-# put your free key from https://aistudio.google.com/apikey into GEMINI_API_KEY
 npm run dev
 ```
 
-Open http://localhost:3000 and start typing in the chat panel.
+Open http://localhost:3000 and start typing in the chat panel. If you have Claude Code installed, that's it — the app uses it automatically. Otherwise `cp .env.local.example .env.local` and set `GEMINI_API_KEY` (free). Set `LLM_PROVIDER` in `.env.local` to force one when both are available (Gemini wins by default).
 
 ### Optional: Google Calendar sync
 

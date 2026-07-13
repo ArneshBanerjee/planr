@@ -8,6 +8,9 @@ const dataDir = path.join(process.cwd(), "data");
 fs.mkdirSync(dataDir, { recursive: true });
 
 const sqlite = new Database(path.join(dataDir, "planr.db"));
+// busy_timeout first: Next.js build/dev workers open this file in parallel and
+// all run the bootstrap DDL below — without a wait, one of them hits SQLITE_BUSY.
+sqlite.pragma("busy_timeout = 10000");
 sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("foreign_keys = ON");
 

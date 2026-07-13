@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "./types";
 
 interface Props {
-  geminiConfigured: boolean;
+  llmProvider: "gemini" | "claude-code" | null;
   onStateChanged: () => void;
 }
 
@@ -15,7 +15,7 @@ Try something like:
 
 Then adjust anytime: "It's my gf's birthday — I'm out from 5:30pm for ~4 hrs" or "Exams on 15th, 17th, 20th from 1-3pm".`;
 
-export default function ChatPanel({ geminiConfigured, onStateChanged }: Props) {
+export default function ChatPanel({ llmProvider, onStateChanged }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -76,14 +76,23 @@ export default function ChatPanel({ geminiConfigured, onStateChanged }: Props) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 space-y-3 overflow-y-auto p-3">
-        {!geminiConfigured && (
+        {llmProvider === null && (
           <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-            <strong>Setup needed:</strong> get a free Gemini key at{" "}
+            <strong>Setup needed:</strong> either install{" "}
+            <a className="underline" href="https://claude.com/claude-code" target="_blank">
+              Claude Code
+            </a>{" "}
+            (uses your subscription, no key needed) or get a free Gemini key at{" "}
             <a className="underline" href="https://aistudio.google.com/apikey" target="_blank">
               aistudio.google.com/apikey
-            </a>
-            , put it in <code>.env.local</code> as <code>GEMINI_API_KEY=...</code> and restart the
-            dev server.
+            </a>{" "}
+            and put it in <code>.env.local</code> as <code>GEMINI_API_KEY=...</code>. Restart the
+            dev server after.
+          </div>
+        )}
+        {llmProvider === "claude-code" && messages.length === 0 && (
+          <div className="rounded-lg bg-emerald-50 p-2 text-xs text-emerald-700">
+            Powered by your Claude Code subscription — replies take a few extra seconds.
           </div>
         )}
         {messages.length === 0 && (

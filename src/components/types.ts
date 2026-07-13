@@ -31,7 +31,7 @@ export interface AppState {
   blocks: BlockDto[];
   fixedEvents: FixedEventDto[];
   googleConnected: boolean;
-  geminiConfigured: boolean;
+  llmProvider: "gemini" | "claude-code" | null;
 }
 
 export interface ChatMessage {

@@ -61,7 +61,7 @@ export default function Home() {
           )}
         </section>
         <aside className="flex w-[380px] shrink-0 flex-col border-l border-slate-200">
-          <ChatPanel geminiConfigured={state?.geminiConfigured ?? true} onStateChanged={refresh} />
+          <ChatPanel llmProvider={state?.llmProvider ?? "claude-code"} onStateChanged={refresh} />
         </aside>
       </main>
     </div>

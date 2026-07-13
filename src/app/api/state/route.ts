@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getActiveGoals, getAllBlocks, getFixedEvents } from "@/lib/plan";
 import { isConnected } from "@/lib/google";
+import { activeProvider } from "@/lib/llm";
 
 export async function GET() {
   return NextResponse.json({
@@ -8,6 +9,6 @@ export async function GET() {
     blocks: getAllBlocks(),
     fixedEvents: getFixedEvents(),
     googleConnected: isConnected(),
-    geminiConfigured: !!process.env.GEMINI_API_KEY,
+    llmProvider: activeProvider(), // "gemini" | "claude-code" | null
   });
 }
