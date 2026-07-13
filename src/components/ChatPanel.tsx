@@ -3,10 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "./types";
 
+import type { LlmProvider } from "./types";
+
 interface Props {
-  llmProvider: "gemini" | "claude-code" | null;
+  llmProvider: LlmProvider | null;
+  llmReady: boolean;
+  onOpenSettings: () => void;
   onStateChanged: () => void;
 }
+
+const PROVIDER_LABELS: Record<LlmProvider, string> = {
+  openai: "ChatGPT",
+  gemini: "Gemini",
+  anthropic: "Claude API",
+  "claude-code": "Claude Code",
+};
 
 const WELCOME = `Hi! Tell me about your goals, sleep, and commitments — I'll plan your calendar.
 
@@ -21,7 +32,7 @@ const MODELS = [
   { id: "opus", label: "Opus · smartest" },
 ] as const;
 
-export default function ChatPanel({ llmProvider, onStateChanged }: Props) {
+export default function ChatPanel({ llmProvider, llmReady, onOpenSettings, onStateChanged }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -90,18 +101,14 @@ export default function ChatPanel({ llmProvider, onStateChanged }: Props) {
   return (
     <div className="flex h-full flex-col bg-white">
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
-        {llmProvider === null && (
+        {!llmReady && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            <strong>Setup needed:</strong> either install{" "}
-            <a className="underline" href="https://claude.com/claude-code" target="_blank">
-              Claude Code
-            </a>{" "}
-            (uses your subscription, no key needed) or get a free Gemini key at{" "}
-            <a className="underline" href="https://aistudio.google.com/apikey" target="_blank">
-              aistudio.google.com/apikey
-            </a>{" "}
-            and put it in <code>.env.local</code> as <code>GEMINI_API_KEY=...</code>. Restart the
-            dev server after.
+            <strong>Pick your AI first:</strong> open{" "}
+            <button onClick={onOpenSettings} className="font-semibold underline">
+              ⚙️ Settings
+            </button>{" "}
+            and choose ChatGPT, Gemini, Claude API (your own key) or Claude Code (subscription, no
+            key).
           </div>
         )}
         {messages.length === 0 && (
@@ -173,9 +180,13 @@ export default function ChatPanel({ llmProvider, onStateChanged }: Props) {
                 ))}
               </select>
             ) : (
-              <span className="px-1 text-xs text-stone-400">
-                {llmProvider === "gemini" ? "Gemini 2.5 Flash" : ""}
-              </span>
+              <button
+                onClick={onOpenSettings}
+                className="px-1 text-xs text-stone-400 hover:text-stone-600"
+                title="Change provider or model in Settings"
+              >
+                {llmProvider ? `via ${PROVIDER_LABELS[llmProvider]}` : "no AI selected"}
+              </button>
             )}
             <button
               onClick={send}

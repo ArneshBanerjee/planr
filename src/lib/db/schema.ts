@@ -72,6 +72,12 @@ export const messages = sqliteTable("messages", {
     .$defaultFn(() => new Date().toISOString()),
 });
 
+// Free-form app settings (LLM provider choice, API keys — local single-user app).
+export const settings = sqliteTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+});
+
 // Google OAuth tokens (single user, single row).
 export const googleAuth = sqliteTable("google_auth", {
   id: integer("id").primaryKey({ autoIncrement: true }),

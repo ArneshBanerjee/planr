@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import CalendarView from "@/components/CalendarView";
 import ChatPanel from "@/components/ChatPanel";
+import SettingsModal from "@/components/SettingsModal";
 import TodayStrip from "@/components/TodayStrip";
 import type { AppState } from "@/components/types";
 
 export default function Home() {
   const [state, setState] = useState<AppState | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const refresh = useCallback(() => {
     fetch("/api/state")
@@ -74,8 +76,22 @@ export default function Home() {
               Connect Google Calendar
             </a>
           )}
+          <button
+            onClick={() => setSettingsOpen(true)}
+            title="AI provider settings"
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+              state && !state.llmReady
+                ? "animate-pulse border-amber-300 bg-amber-50 text-amber-700"
+                : "border-stone-300 text-stone-600 hover:border-stone-400 hover:text-stone-900"
+            }`}
+          >
+            ⚙️ {state && !state.llmReady ? "Set up AI" : "Settings"}
+          </button>
         </div>
       </header>
+      {settingsOpen && (
+        <SettingsModal onClose={() => setSettingsOpen(false)} onSaved={refresh} />
+      )}
       {state && <TodayStrip state={state} />}
       <main className="flex min-h-0 flex-1">
         <section className="min-w-0 flex-[3] p-4">
@@ -86,7 +102,12 @@ export default function Home() {
           )}
         </section>
         <aside className="flex w-[390px] shrink-0 flex-col border-l border-stone-200">
-          <ChatPanel llmProvider={state?.llmProvider ?? "claude-code"} onStateChanged={refresh} />
+          <ChatPanel
+            llmProvider={state?.llmProvider ?? null}
+            llmReady={state?.llmReady ?? true}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onStateChanged={refresh}
+          />
         </aside>
       </main>
     </div>

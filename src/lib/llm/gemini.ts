@@ -82,12 +82,16 @@ const responseSchema: Schema = {
   required: ["reply", "ops"],
 };
 
+export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+
 export async function parseWithGemini(
   history: ChatTurn[],
   userMessage: string,
   stateSnapshot: string,
+  apiKey: string,
+  model?: string,
 ): Promise<LlmResponse> {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
 
   const contents = [
     ...history.slice(-12).map((t) => ({
@@ -100,12 +104,12 @@ export async function parseWithGemini(
     },
   ];
 
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
+  const models = model ? [model] : [DEFAULT_GEMINI_MODEL, "gemini-2.0-flash"];
   let lastErr: unknown;
-  for (const model of models) {
+  for (const m of models) {
     try {
       const res = await ai.models.generateContent({
-        model,
+        model: m,
         contents,
         config: {
           systemInstruction: SYSTEM_PROMPT,

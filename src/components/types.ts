@@ -31,7 +31,19 @@ export interface AppState {
   blocks: BlockDto[];
   fixedEvents: FixedEventDto[];
   googleConnected: boolean;
-  llmProvider: "gemini" | "claude-code" | null;
+  llmProvider: LlmProvider | null;
+  llmReady: boolean;
+}
+
+export type LlmProvider = "openai" | "gemini" | "anthropic" | "claude-code";
+
+export interface ProviderStatus {
+  provider: LlmProvider | null;
+  ready: boolean;
+  claudeCodeAvailable: boolean;
+  keysSet: { openai: boolean; gemini: boolean; anthropic: boolean };
+  models: Record<LlmProvider, string>;
+  defaults: Record<LlmProvider, string>;
 }
 
 export interface ChatMessage {
