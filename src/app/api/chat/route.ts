@@ -3,19 +3,27 @@ import { desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { messages } from "@/lib/db/schema";
 import {
+  CLAUDE_CODE_MODELS,
   LlmNotConfiguredError,
   LlmRateLimitError,
   parseMessage,
   type ChatTurn,
+  type ClaudeCodeModel,
 } from "@/lib/llm";
 import { applyOps, buildStateSnapshot, replan } from "@/lib/plan";
 import { syncToGoogle } from "@/lib/google";
 
 export async function POST(req: Request) {
-  const { message } = (await req.json()) as { message?: string };
+  const { message, model } = (await req.json()) as {
+    message?: string;
+    model?: string;
+  };
   if (!message?.trim()) {
     return NextResponse.json({ error: "Empty message" }, { status: 400 });
   }
+  const claudeModel = CLAUDE_CODE_MODELS.includes(model as ClaudeCodeModel)
+    ? (model as ClaudeCodeModel)
+    : undefined;
 
   const history: ChatTurn[] = db
     .select()
@@ -29,7 +37,9 @@ export async function POST(req: Request) {
   db.insert(messages).values({ role: "user", content: message }).run();
 
   try {
-    const parsed = await parseMessage(history, message, buildStateSnapshot());
+    const parsed = await parseMessage(history, message, buildStateSnapshot(), {
+      model: claudeModel,
+    });
     const result = applyOps(parsed.ops);
 
     let summary = null;

@@ -65,6 +65,7 @@ export async function parseWithClaudeCode(
   history: ChatTurn[],
   userMessage: string,
   stateSnapshot: string,
+  modelOverride?: string,
 ): Promise<LlmResponse> {
   const historyText =
     history.length === 0
@@ -82,7 +83,7 @@ export async function parseWithClaudeCode(
     historyText + buildTurnContext(userMessage, stateSnapshot),
   ].join("\n\n");
 
-  const model = process.env.CLAUDE_CODE_MODEL || "sonnet";
+  const model = modelOverride || process.env.CLAUDE_CODE_MODEL || "sonnet";
   let raw: string;
   try {
     raw = await runClaude(

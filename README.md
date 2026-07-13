@@ -8,7 +8,7 @@ Type things like:
 
 …and Planr fills your calendar with concrete time blocks. Then adjust anytime:
 
-> "It's my gf's birthday — I'm out from 5:30pm for ~4 hrs"
+> "It's my friend's birthday — I'm out from 5:30pm for ~4 hrs"
 > "Exams on the 15th, 17th and 20th from 1-3pm"
 
 and the plan re-flows around them without churning days that didn't change.

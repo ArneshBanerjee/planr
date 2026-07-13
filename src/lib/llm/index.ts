@@ -26,10 +26,14 @@ export function activeProvider(): LlmProvider | null {
   return null;
 }
 
+export const CLAUDE_CODE_MODELS = ["haiku", "sonnet", "opus"] as const;
+export type ClaudeCodeModel = (typeof CLAUDE_CODE_MODELS)[number];
+
 export async function parseMessage(
   history: ChatTurn[],
   userMessage: string,
   stateSnapshot: string,
+  opts?: { model?: ClaudeCodeModel },
 ): Promise<LlmResponse> {
   const provider = activeProvider();
   if (provider === "gemini") {
@@ -41,7 +45,7 @@ export async function parseMessage(
     return parseWithGemini(history, userMessage, stateSnapshot);
   }
   if (provider === "claude-code") {
-    return parseWithClaudeCode(history, userMessage, stateSnapshot);
+    return parseWithClaudeCode(history, userMessage, stateSnapshot, opts?.model);
   }
   throw new LlmNotConfiguredError(
     "No LLM configured. Either install Claude Code (uses your subscription — no key needed) or set GEMINI_API_KEY in .env.local (free key: https://aistudio.google.com/apikey).",
