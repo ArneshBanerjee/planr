@@ -73,9 +73,17 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE TABLE IF NOT EXISTS google_auth (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tokens TEXT NOT NULL,
+  account_email TEXT,
   planr_calendar_id TEXT,
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_blocks_start ON blocks(start);
 CREATE INDEX IF NOT EXISTS idx_fixed_events_start ON fixed_events(start);
 `);
+
+// Lightweight migration for DBs created before the column existed.
+try {
+  sqlite.exec("ALTER TABLE google_auth ADD COLUMN account_email TEXT");
+} catch {
+  // column already exists
+}

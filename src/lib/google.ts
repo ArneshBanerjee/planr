@@ -3,17 +3,33 @@ import { and, eq, gte, isNull } from "drizzle-orm";
 import { db } from "./db";
 import { blocks, fixedEvents, googleAuth, goals } from "./db/schema";
 import { replan } from "./plan";
+import { getSetting, setSetting } from "./settings";
 
 const PUSH_WINDOW_DAYS = 14; // only mirror the near future to Google
 const PULL_WINDOW_DAYS = 60;
 
-function getOAuthClient() {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+function credentials(): { clientId: string; clientSecret: string } | null {
+  const clientId = getSetting("google_client_id") ?? process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = getSetting("google_client_secret") ?? process.env.GOOGLE_CLIENT_SECRET;
   if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
+}
+
+export function isConfigured(): boolean {
+  return credentials() !== null;
+}
+
+export function setCredentials(clientId: string, clientSecret: string): void {
+  setSetting("google_client_id", clientId.trim() || null);
+  setSetting("google_client_secret", clientSecret.trim() || null);
+}
+
+function getOAuthClient() {
+  const creds = credentials();
+  if (!creds) return null;
   return new google.auth.OAuth2(
-    clientId,
-    clientSecret,
+    creds.clientId,
+    creds.clientSecret,
     "http://localhost:3000/api/google/callback",
   );
 }
@@ -24,27 +40,53 @@ export function getAuthUrl(): string | null {
   return client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
-    scope: ["https://www.googleapis.com/auth/calendar"],
+    scope: ["https://www.googleapis.com/auth/calendar", "openid", "email"],
   });
+}
+
+/** Best-effort email extraction from the OAuth id_token (JWT payload). */
+function emailFromIdToken(idToken: string | null | undefined): string | null {
+  if (!idToken) return null;
+  try {
+    const payload = JSON.parse(
+      Buffer.from(idToken.split(".")[1], "base64url").toString("utf8"),
+    ) as { email?: string };
+    return payload.email ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function handleCallback(code: string): Promise<void> {
   const client = getOAuthClient();
-  if (!client) throw new Error("Google OAuth env vars not configured");
+  if (!client) throw new Error("Google OAuth client not configured");
   const { tokens } = await client.getToken(code);
+  const accountEmail = emailFromIdToken(tokens.id_token);
   const existing = db.select().from(googleAuth).get();
   if (existing) {
     db.update(googleAuth)
-      .set({ tokens, updatedAt: new Date().toISOString() })
+      .set({ tokens, accountEmail, updatedAt: new Date().toISOString() })
       .where(eq(googleAuth.id, existing.id))
       .run();
   } else {
-    db.insert(googleAuth).values({ tokens }).run();
+    db.insert(googleAuth).values({ tokens, accountEmail }).run();
   }
 }
 
 export function isConnected(): boolean {
   return !!db.select().from(googleAuth).get();
+}
+
+export function connectedEmail(): string | null {
+  return db.select().from(googleAuth).get()?.accountEmail ?? null;
+}
+
+/** Sign out: drop tokens, imported Google events, and Planr-calendar links. */
+export function disconnect(): void {
+  db.delete(googleAuth).run();
+  db.delete(fixedEvents).where(eq(fixedEvents.source, "google")).run();
+  db.update(blocks).set({ googleEventId: null }).run();
+  replan(); // time formerly blocked by Google events is free again
 }
 
 function getCalendarClient(): {

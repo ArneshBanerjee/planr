@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getActiveGoals, getAllBlocks, getFixedEvents } from "@/lib/plan";
-import { isConnected } from "@/lib/google";
+import { connectedEmail, isConfigured, isConnected } from "@/lib/google";
 import { chosenProvider, providerReady } from "@/lib/llm";
 
 export async function GET() {
@@ -10,6 +10,8 @@ export async function GET() {
     blocks: getAllBlocks(),
     fixedEvents: getFixedEvents(),
     googleConnected: isConnected(),
+    googleConfigured: isConfigured(),
+    googleEmail: connectedEmail(),
     llmProvider: provider,
     llmReady: providerReady(provider),
   });

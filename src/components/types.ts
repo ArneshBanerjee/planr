@@ -31,6 +31,8 @@ export interface AppState {
   blocks: BlockDto[];
   fixedEvents: FixedEventDto[];
   googleConnected: boolean;
+  googleConfigured: boolean;
+  googleEmail: string | null;
   llmProvider: LlmProvider | null;
   llmReady: boolean;
 }

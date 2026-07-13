@@ -82,6 +82,7 @@ export const settings = sqliteTable("settings", {
 export const googleAuth = sqliteTable("google_auth", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   tokens: text("tokens", { mode: "json" }).notNull(),
+  accountEmail: text("account_email"),
   planrCalendarId: text("planr_calendar_id"),
   updatedAt: text("updated_at")
     .notNull()

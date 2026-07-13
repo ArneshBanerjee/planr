@@ -43,6 +43,35 @@ const PROVIDERS: {
   },
 ];
 
+export function GoogleG({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden>
+      <path
+        fill="#EA4335"
+        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+      />
+      <path
+        fill="#4285F4"
+        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+      />
+    </svg>
+  );
+}
+
+interface GoogleConfig {
+  configured: boolean;
+  connected: boolean;
+  email: string | null;
+}
+
 export default function SettingsModal({ onClose, onSaved }: Props) {
   const [status, setStatus] = useState<ProviderStatus | null>(null);
   const [provider, setProvider] = useState<LlmProvider>("gemini");
@@ -50,6 +79,10 @@ export default function SettingsModal({ onClose, onSaved }: Props) {
   const [model, setModel] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gcfg, setGcfg] = useState<GoogleConfig | null>(null);
+  const [gClientId, setGClientId] = useState("");
+  const [gClientSecret, setGClientSecret] = useState("");
+  const [gSaving, setGSaving] = useState(false);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -62,7 +95,28 @@ export default function SettingsModal({ onClose, onSaved }: Props) {
         }
       })
       .catch(() => setError("Couldn't load settings"));
+    fetch("/api/google/config")
+      .then((r) => r.json())
+      .then(setGcfg)
+      .catch(() => {});
   }, []);
+
+  async function saveGoogle(body: object) {
+    setGSaving(true);
+    try {
+      const res = await fetch("/api/google/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      setGcfg(await res.json());
+      setGClientId("");
+      setGClientSecret("");
+      onSaved();
+    } finally {
+      setGSaving(false);
+    }
+  }
 
   function switchProvider(p: LlmProvider) {
     setProvider(p);
@@ -105,7 +159,7 @@ export default function SettingsModal({ onClose, onSaved }: Props) {
   return (
     <>
       <div className="fixed inset-0 z-40 bg-stone-900/30 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="fixed left-1/2 top-1/2 z-50 w-[440px] max-w-[92vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-stone-200 bg-white p-5 shadow-2xl">
+      <div className="fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[440px] max-w-[92vw] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-stone-200 bg-white p-5 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-bold tracking-tight">AI provider</h2>
           <button onClick={onClose} className="rounded-lg px-2 py-1 text-stone-400 hover:bg-stone-100">
@@ -195,6 +249,80 @@ export default function SettingsModal({ onClose, onSaved }: Props) {
         </div>
 
         {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+
+        <div className="mt-6 border-t border-stone-100 pt-4">
+          <h2 className="mb-1 text-base font-bold tracking-tight">Google Calendar</h2>
+          {gcfg?.connected ? (
+            <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+              <div className="text-sm text-emerald-800">
+                <span className="font-semibold">Signed in</span>
+                {gcfg.email && <span className="block text-xs">{gcfg.email}</span>}
+              </div>
+              <button
+                onClick={() => saveGoogle({ disconnect: true })}
+                disabled={gSaving}
+                className="rounded-lg border border-emerald-300 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-40"
+              >
+                {gSaving ? "…" : "Disconnect"}
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="mb-2 text-xs leading-relaxed text-stone-500">
+                One-time setup: create an OAuth client at{" "}
+                <a
+                  className="text-indigo-600 underline"
+                  href="https://console.cloud.google.com/apis/credentials"
+                  target="_blank"
+                >
+                  console.cloud.google.com
+                </a>{" "}
+                (type: <em>Web application</em>, redirect URI{" "}
+                <code className="rounded bg-stone-100 px-1">
+                  http://localhost:3000/api/google/callback
+                </code>
+                , with the Calendar API enabled), then paste the credentials here and sign in.
+              </p>
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={gClientId}
+                  onChange={(e) => setGClientId(e.target.value)}
+                  placeholder={gcfg?.configured ? "Client ID (saved — leave blank to keep)" : "Client ID"}
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+                />
+                <input
+                  type="password"
+                  value={gClientSecret}
+                  onChange={(e) => setGClientSecret(e.target.value)}
+                  placeholder={gcfg?.configured ? "Client secret (saved — leave blank to keep)" : "Client secret"}
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+                />
+                <div className="flex items-center gap-2">
+                  {gClientId.trim() && gClientSecret.trim() && (
+                    <button
+                      onClick={() =>
+                        saveGoogle({ clientId: gClientId, clientSecret: gClientSecret })
+                      }
+                      disabled={gSaving}
+                      className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-100 disabled:opacity-40"
+                    >
+                      {gSaving ? "Saving…" : "Save credentials"}
+                    </button>
+                  )}
+                  {gcfg?.configured && (
+                    <a
+                      href="/api/google/auth"
+                      className="inline-flex items-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 shadow-sm hover:bg-stone-50"
+                    >
+                      <GoogleG /> Sign in with Google
+                    </a>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
 
         <div className="mt-5 flex justify-end gap-2">
           <button

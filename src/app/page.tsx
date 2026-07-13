@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import CalendarView from "@/components/CalendarView";
 import ChatPanel from "@/components/ChatPanel";
-import SettingsModal from "@/components/SettingsModal";
+import SettingsModal, { GoogleG } from "@/components/SettingsModal";
 import TodayStrip from "@/components/TodayStrip";
 import type { AppState } from "@/components/types";
 
@@ -64,17 +64,28 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-3 text-sm">
           {state?.googleConnected ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+            <button
+              onClick={() => setSettingsOpen(true)}
+              title={state.googleEmail ? `Synced as ${state.googleEmail} — click to manage` : "Manage Google sync"}
+              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+            >
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Google synced
-            </span>
-          ) : (
+              {state.googleEmail ?? "Google synced"}
+            </button>
+          ) : state?.googleConfigured ? (
             <a
               href="/api/google/auth"
-              className="rounded-full border border-stone-300 px-3 py-1 text-xs font-medium text-stone-600 transition hover:border-stone-400 hover:text-stone-900"
+              className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-3 py-1 text-xs font-medium text-stone-700 shadow-sm transition hover:bg-stone-50"
             >
-              Connect Google Calendar
+              <GoogleG /> Sign in with Google
             </a>
+          ) : (
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-3 py-1 text-xs font-medium text-stone-700 shadow-sm transition hover:bg-stone-50"
+            >
+              <GoogleG /> Sign in with Google
+            </button>
           )}
           <button
             onClick={() => setSettingsOpen(true)}
