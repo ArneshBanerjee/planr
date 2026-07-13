@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🗓️ Planr
 
-## Getting Started
+Tell it what's on your plate in plain language — it plans your calendar.
 
-First, run the development server:
+Type things like:
+
+> "I want 7-8 hrs sleep, dropping to 6 on heavy days. GATE exam is the first week of Feb 2027 — add daily subject blocks from now till then, learning first then tons of questions. I also do DSA, research work, and my final-year project."
+
+…and Planr fills your calendar with concrete time blocks. Then adjust anytime:
+
+> "It's my gf's birthday — I'm out from 5:30pm for ~4 hrs"
+> "Exams on the 15th, 17th and 20th from 1-3pm"
+
+and the plan re-flows around them without churning days that didn't change.
+
+## How it works
+
+- **Gemini (free tier)** parses each chat message into structured operations (goals, constraints, fixed events) — one API call per message, so free-tier rate limits don't matter.
+- A **deterministic scheduler** (pure TypeScript, no LLM) places 45–120 min blocks around sleep and fixed events, weighted by priority and deadline pressure, with phase-aware labels (learn → questions) and subject rotation. Re-plans only touch future, unlocked blocks.
+- Blocks live in **SQLite** (`data/planr.db`, auto-created) and render in **FullCalendar**. Click a block to mark done/skip/lock; dragging a block pins it.
+- Optional **Google Calendar sync**: your real events are planned around, and the next 14 days of blocks mirror to a dedicated "Planr" calendar for phone notifications.
+
+## Setup
 
 ```bash
+npm install
+cp .env.local.example .env.local
+# put your free key from https://aistudio.google.com/apikey into GEMINI_API_KEY
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 and start typing in the chat panel.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Optional: Google Calendar sync
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Create a project at https://console.cloud.google.com, enable the **Google Calendar API**
+2. Create an OAuth client (Web application) with redirect URI `http://localhost:3000/api/google/callback`
+3. Put the client ID/secret in `.env.local`, restart, and click **Connect Google Calendar**
 
-## Learn More
+## Tests
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npx vitest run
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Covers the scheduler (placement, phases, sleep borrowing, minimal re-plan diffs) and the full ops → DB → scheduler pipeline for the three scenarios above.
