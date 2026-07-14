@@ -46,3 +46,7 @@ npx vitest run
 ```
 
 Covers the scheduler (placement, phases, sleep borrowing, minimal re-plan diffs) and the full ops → DB → scheduler pipeline for the three scenarios above.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
