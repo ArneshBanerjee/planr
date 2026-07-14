@@ -12,15 +12,38 @@ import {
 } from "@/lib/llm";
 import { applyOps, buildStateSnapshot, replan } from "@/lib/plan";
 import { syncToGoogle } from "@/lib/google";
+import { extractDocumentText } from "@/lib/extractDoc";
 
 export async function POST(req: Request) {
-  const { message, model } = (await req.json()) as {
-    message?: string;
-    model?: string;
-  };
-  if (!message?.trim()) {
+  let message: string | undefined;
+  let model: string | undefined;
+  let docName: string | null = null;
+  let docText: string | null = null;
+
+  if (req.headers.get("content-type")?.includes("multipart/form-data")) {
+    const fd = await req.formData();
+    message = (fd.get("message") as string | null) ?? undefined;
+    model = (fd.get("model") as string | null) ?? undefined;
+    const file = fd.get("file");
+    if (file instanceof File && file.size > 0) {
+      docName = file.name;
+      try {
+        docText = await extractDocumentText(file);
+      } catch (err) {
+        return NextResponse.json(
+          { error: err instanceof Error ? err.message : "Couldn't read that file." },
+          { status: 400 },
+        );
+      }
+    }
+  } else {
+    ({ message, model } = (await req.json()) as { message?: string; model?: string });
+  }
+
+  if (!message?.trim() && !docText) {
     return NextResponse.json({ error: "Empty message" }, { status: 400 });
   }
+  message = message?.trim() || "Here's a document — use it to plan.";
   const claudeModel = CLAUDE_CODE_MODELS.includes(model as ClaudeCodeModel)
     ? (model as ClaudeCodeModel)
     : undefined;
@@ -34,10 +57,18 @@ export async function POST(req: Request) {
     .reverse()
     .map((m) => ({ role: m.role, content: m.content }));
 
-  db.insert(messages).values({ role: "user", content: message }).run();
+  // History/DB stores a compact marker, not the full document text.
+  db.insert(messages)
+    .values({ role: "user", content: docName ? `${message}\n📎 ${docName}` : message })
+    .run();
+
+  // The LLM sees the extracted document inline with this turn only.
+  const llmMessage = docText
+    ? `${message}\n\n--- Attached document: "${docName}" ---\n${docText}\n--- end of document ---`
+    : message;
 
   try {
-    const parsed = await parseMessage(history, message, buildStateSnapshot(), {
+    const parsed = await parseMessage(history, llmMessage, buildStateSnapshot(), {
       model: claudeModel,
     });
     const result = applyOps(parsed.ops);

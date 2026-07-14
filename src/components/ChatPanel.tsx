@@ -24,7 +24,9 @@ const WELCOME = `Hi! Tell me about your goals, sleep, and commitments — I'll p
 Try something like:
 "I want 7-8 hrs sleep, dropping to 6 on heavy days. GATE exam is the first week of Feb 2027 — add daily subject blocks from now till then, learning first, then tons of questions. I also do DSA, research work, and my final-year project."
 
-Then adjust anytime: "It's my friend's birthday — I'm out from 5:30pm for ~4 hrs" or "Exams on 15th, 17th, 20th from 1-3pm".`;
+Then adjust anytime: "It's my friend's birthday — I'm out from 5:30pm for ~4 hrs" or "Exams on 15th, 17th, 20th from 1-3pm".
+
+You can also attach a document with 📎 — e.g. your syllabus or exam timetable (PDF/txt) — and I'll pull subjects and dates from it.`;
 
 const MODELS = [
   { id: "haiku", label: "Haiku · fastest" },
@@ -37,7 +39,9 @@ export default function ChatPanel({ llmProvider, llmReady, onOpenSettings, onSta
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [model, setModel] = useState<string>("sonnet");
+  const [file, setFile] = useState<File | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("planr-model");
@@ -59,16 +63,35 @@ export default function ChatPanel({ llmProvider, llmReady, onOpenSettings, onSta
 
   async function send() {
     const text = input.trim();
-    if (!text || busy) return;
+    if ((!text && !file) || busy) return;
+    const attached = file;
     setInput("");
+    setFile(null);
+    if (fileRef.current) fileRef.current.value = "";
     setBusy(true);
-    setMessages((m) => [...m, { id: Date.now(), role: "user", content: text }]);
+    setMessages((m) => [
+      ...m,
+      {
+        id: Date.now(),
+        role: "user",
+        content: attached ? `${text || "(document)"}\n📎 ${attached.name}` : text,
+      },
+    ]);
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, model }),
-      });
+      let res: Response;
+      if (attached) {
+        const fd = new FormData();
+        fd.set("message", text);
+        fd.set("model", model);
+        fd.set("file", attached);
+        res = await fetch("/api/chat", { method: "POST", body: fd });
+      } else {
+        res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text, model }),
+        });
+      }
       const data = await res.json();
       if (!res.ok) {
         setMessages((m) => [
@@ -152,6 +175,23 @@ export default function ChatPanel({ llmProvider, llmReady, onOpenSettings, onSta
       </div>
       <div className="border-t border-stone-200 p-3">
         <div className="rounded-2xl border border-stone-300 bg-white shadow-sm transition focus-within:border-stone-400">
+          {file && (
+            <div className="flex items-center gap-2 px-3 pt-2.5">
+              <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700">
+                📎 <span className="truncate">{file.name}</span>
+                <button
+                  onClick={() => {
+                    setFile(null);
+                    if (fileRef.current) fileRef.current.value = "";
+                  }}
+                  className="ml-1 text-indigo-400 hover:text-indigo-700"
+                  title="Remove attachment"
+                >
+                  ✕
+                </button>
+              </span>
+            </div>
+          )}
           <textarea
             className="max-h-32 w-full resize-none rounded-t-2xl bg-transparent px-3.5 pt-3 pb-1 text-sm focus:outline-none"
             rows={2}
@@ -166,6 +206,21 @@ export default function ChatPanel({ llmProvider, llmReady, onOpenSettings, onSta
             }}
           />
           <div className="flex items-center justify-between px-2.5 pb-2">
+            <div className="flex items-center gap-1.5">
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.txt,.md,.csv,text/plain,application/pdf"
+                className="hidden"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+              <button
+                onClick={() => fileRef.current?.click()}
+                title="Attach a document (syllabus, exam timetable — PDF/txt/md)"
+                className="rounded-lg border border-stone-200 bg-stone-50 px-2 py-1 text-xs text-stone-600 hover:bg-stone-100"
+              >
+                📎
+              </button>
             {llmProvider === "claude-code" ? (
               <select
                 value={model}
@@ -188,9 +243,10 @@ export default function ChatPanel({ llmProvider, llmReady, onOpenSettings, onSta
                 {llmProvider ? `via ${PROVIDER_LABELS[llmProvider]}` : "no AI selected"}
               </button>
             )}
+            </div>
             <button
               onClick={send}
-              disabled={busy || !input.trim()}
+              disabled={busy || (!input.trim() && !file)}
               className="rounded-xl bg-stone-900 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-stone-700 disabled:opacity-30"
             >
               Send ↵

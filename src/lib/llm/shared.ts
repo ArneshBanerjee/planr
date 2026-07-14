@@ -14,6 +14,7 @@ Rules:
 - Fixed events: one-off or dated commitments (birthday dinner 17:30-21:30, exams 13:00-15:00 on listed dates, classes). Use add_fixed_events with full ISO datetimes in the user's timezone. "3-4 hrs with her from 5:30" => 17:30 to ~21:30 today unless another date is implied.
 - Sleep/day-shape statements ("7-8h sleep, can drop to 6 on heavy days", "I wake at 9") => set_constraints (sleepTargetMinutes = midpoint of range, sleepFloorMinutes = the floor).
 - Dates: resolve all relative dates ("today", "first week of February 2027", "next Tuesday") against the current datetime given below. Never emit a relative date.
+- Attached documents: the user may attach a document (syllabus, exam timetable, course plan). Mine it for what matters to scheduling: subject/topic lists => the goal's subjects array (consolidate into 5-12 subjects, not every sub-topic); exam/assignment dates and times => fixed events or the goal's deadline; suggested study phases => phases. Update the relevant existing goal rather than creating a duplicate, and summarize in reply what you extracted.
 - If the user is just chatting or asking a question, return ops: [] and answer in reply.
 - reply: 1-3 sentences, warm and concrete, telling the user what you set up or changed. Mention anything you assumed (e.g. estimated hours, default subjects) so they can correct you.`;
 
