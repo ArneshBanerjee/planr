@@ -78,17 +78,22 @@ function findGoalByName(name: string): Goal | undefined {
 
 export interface ApplyResult {
   applied: string[]; // human-readable descriptions of what changed
+  skipped: string[]; // ops that could not be applied, with reasons
   mutated: boolean;
 }
 
 export function applyOps(ops: Op[]): ApplyResult {
   const applied: string[] = [];
+  const skipped: string[] = [];
   let mutated = false;
 
   for (const op of ops) {
     switch (op.type) {
       case "add_goal": {
-        if (!op.name) break;
+        if (!op.name) {
+          skipped.push("An add_goal instruction was missing the goal name");
+          break;
+        }
         const existing = findGoalByName(op.name);
         if (existing) {
           // LLM tried to re-add — treat as update.
@@ -112,9 +117,15 @@ export function applyOps(ops: Op[]): ApplyResult {
         break;
       }
       case "update_goal": {
-        if (!op.name) break;
+        if (!op.name) {
+          skipped.push("An update_goal instruction was missing the goal name");
+          break;
+        }
         const g = findGoalByName(op.name);
-        if (!g) break;
+        if (!g) {
+          skipped.push(`No existing goal matches "${op.name}" — nothing updated`);
+          break;
+        }
         db.update(goals)
           .set({
             name: op.newName ?? g.name,
@@ -132,9 +143,15 @@ export function applyOps(ops: Op[]): ApplyResult {
         break;
       }
       case "remove_goal": {
-        if (!op.name) break;
+        if (!op.name) {
+          skipped.push("A remove_goal instruction was missing the goal name");
+          break;
+        }
         const g = findGoalByName(op.name);
-        if (!g) break;
+        if (!g) {
+          skipped.push(`No existing goal matches "${op.name}" — nothing removed`);
+          break;
+        }
         db.update(goals).set({ archived: true }).where(eq(goals.id, g.id)).run();
         db.delete(blocks)
           .where(and(eq(blocks.goalId, g.id), eq(blocks.status, "planned")))
@@ -161,7 +178,10 @@ export function applyOps(ops: Op[]): ApplyResult {
         break;
       }
       case "add_fixed_events": {
-        if (!op.title || !op.events?.length) break;
+        if (!op.title || !op.events?.length) {
+          skipped.push("A fixed-event instruction was missing its title or times");
+          break;
+        }
         for (const e of op.events) {
           db.insert(fixedEvents).values({ title: op.title, start: e.start, end: e.end }).run();
         }
@@ -170,7 +190,10 @@ export function applyOps(ops: Op[]): ApplyResult {
         break;
       }
       case "remove_fixed_events": {
-        if (!op.titleMatch) break;
+        if (!op.titleMatch) {
+          skipped.push("A remove-event instruction was missing what to match");
+          break;
+        }
         const removed = db
           .delete(fixedEvents)
           .where(like(fixedEvents.title, `%${op.titleMatch}%`))
@@ -179,11 +202,16 @@ export function applyOps(ops: Op[]): ApplyResult {
         if (removed.length > 0) {
           applied.push(`Removed ${removed.length} fixed event(s) matching "${op.titleMatch}"`);
           mutated = true;
+        } else {
+          skipped.push(`No fixed events match "${op.titleMatch}"`);
         }
         break;
       }
       case "mark_blocks": {
-        if (!op.titleMatch || !op.date || !op.status) break;
+        if (!op.titleMatch || !op.date || !op.status) {
+          skipped.push("A mark-blocks instruction was missing title/date/status");
+          break;
+        }
         const updated = db
           .update(blocks)
           .set({ status: op.status })
@@ -193,6 +221,8 @@ export function applyOps(ops: Op[]): ApplyResult {
         if (updated.length > 0) {
           applied.push(`Marked ${updated.length} block(s) as ${op.status}`);
           mutated = true;
+        } else {
+          skipped.push(`No blocks on ${op.date} match "${op.titleMatch}"`);
         }
         break;
       }
@@ -202,7 +232,7 @@ export function applyOps(ops: Op[]): ApplyResult {
         break;
     }
   }
-  return { applied, mutated };
+  return { applied, skipped, mutated };
 }
 
 export interface ReplanSummary {

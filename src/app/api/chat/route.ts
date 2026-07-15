@@ -84,17 +84,29 @@ export async function POST(req: Request) {
       }
     }
 
+    // Honest feedback: the LLM's reply is written before the scheduler runs,
+    // so verify its claims against what actually happened.
+    const notes = [...result.applied, ...result.skipped.map((s) => `⚠️ ${s}`)];
+    let reply = parsed.reply;
+    if (result.mutated && summary && summary.created === 0 && summary.removed === 0) {
+      reply +=
+        "\n\n⚠️ Heads-up: despite the above, the scheduler didn't actually place or move any blocks. Usual causes: a deadline that's already passed, or a day window/sleep setup that leaves no free time. Tell me what looks wrong and I'll fix it.";
+    } else if (!result.mutated && parsed.ops.length > 0) {
+      reply +=
+        "\n\n⚠️ Heads-up: none of those changes could be applied — see the notes below.";
+    }
+
     db.insert(messages)
       .values({
         role: "assistant",
-        content: parsed.reply,
+        content: reply,
         opsApplied: parsed.ops,
       })
       .run();
 
     return NextResponse.json({
-      reply: parsed.reply,
-      applied: result.applied,
+      reply,
+      applied: notes,
       summary,
     });
   } catch (err) {

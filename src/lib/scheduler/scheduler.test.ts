@@ -224,6 +224,59 @@ describe("scenario 3: exams on specific dates 13:00–15:00", () => {
   });
 });
 
+describe("regressions: overnight day window and same-day deadline", () => {
+  // Reproduces the real failure: "work 11:00 till 3am, lectures due today"
+  // used to produce zero blocks (empty day window + deadline treated as past).
+  const nightOwl: ConstraintsSpec = { ...constraints, dayStart: "11:00", dayEnd: "03:00" };
+  const lectures: GoalSpec = {
+    id: 9,
+    name: "Modular Arithmetic",
+    color: "#f59e0b",
+    priority: 4,
+    deadline: "2026-07-13", // same day as `now`
+    hoursPerWeek: 7,
+    phases: null,
+    subjects: null,
+  };
+
+  it("plans blocks inside an 11:00→03:00 window with a due-today goal", () => {
+    const plan = planSchedule({
+      goals: [lectures],
+      constraints: nightOwl,
+      fixedEvents: [
+        {
+          id: 50,
+          title: "Lunch",
+          start: new Date(2026, 6, 13, 13, 0),
+          end: new Date(2026, 6, 13, 14, 0),
+        },
+      ],
+      existingBlocks: [],
+      now,
+      horizonDays: 1,
+    });
+    expect(plan.length).toBeGreaterThan(0); // used to be 0
+    for (const b of plan) {
+      // nothing during lunch
+      expect(
+        b.start >= new Date(2026, 6, 13, 14, 0) || b.end <= new Date(2026, 6, 13, 13, 0),
+      ).toBe(true);
+    }
+  });
+
+  it("still drops goals whose deadline truly passed", () => {
+    const plan = planSchedule({
+      goals: [{ ...lectures, deadline: "2026-07-12" }], // yesterday
+      constraints: nightOwl,
+      fixedEvents: [],
+      existingBlocks: [],
+      now,
+      horizonDays: 1,
+    });
+    expect(plan.length).toBe(0);
+  });
+});
+
 describe("sleep borrowing", () => {
   it("extends the day toward the 6h sleep floor only when demand exceeds capacity", () => {
     const heavyGoals: GoalSpec[] = [

@@ -60,7 +60,9 @@ function activePhase(goal: GoalSpec, date: Date): string | null {
 /** Deadline pressure multiplier: ramps up as the deadline approaches. */
 function urgency(goal: GoalSpec, date: Date): number {
   if (!goal.deadline) return 1;
-  const daysLeft = (new Date(goal.deadline + "T00:00:00").getTime() - date.getTime()) / 86400000;
+  // Deadlines are inclusive: "due 2026-07-15" still schedules on the 15th.
+  const daysLeft =
+    (new Date(goal.deadline + "T23:59:59").getTime() - date.getTime()) / 86400000;
   if (daysLeft < 0) return 0; // deadline passed — stop scheduling it
   if (daysLeft <= 14) return 2;
   if (daysLeft <= 45) return 1.5;
@@ -147,7 +149,10 @@ export function planSchedule(input: SchedulerInput): PlannedBlock[] {
   const { goals, constraints, fixedEvents, existingBlocks, now } = input;
   const horizonDays = input.horizonDays ?? defaultHorizon(goals);
   const dayStartMin = hmToMinutes(constraints.dayStart);
-  const dayEndMin = hmToMinutes(constraints.dayEnd);
+  // A dayEnd at or before dayStart means "past midnight" (e.g. 11:00 → 03:00);
+  // roll it into the next day so the window isn't empty.
+  let dayEndMin = hmToMinutes(constraints.dayEnd);
+  if (dayEndMin <= dayStartMin) dayEndMin += 24 * 60;
   const sleepSlack = Math.max(0, constraints.sleepTargetMinutes - constraints.sleepFloorMinutes);
 
   const planned: PlannedBlock[] = [];
